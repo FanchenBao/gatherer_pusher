@@ -1,6 +1,6 @@
 from collections import defaultdict
 from hashlib import blake2b
-from typing import Dict, List, Any, Tuple, Deque
+from typing import Dict, List, Any, Tuple
 
 
 def make_data_chunk(
