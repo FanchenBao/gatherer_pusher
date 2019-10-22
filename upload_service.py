@@ -39,7 +39,6 @@ class UploadService:
         # set up callbacks for online and offline situation
         self.myShadowClient.onOnline = self.my_online_callback
         self.myShadowClient.onOffline = self.my_offline_callback
-        self.connect()
 
         # flags
         self.msg_sent = False
