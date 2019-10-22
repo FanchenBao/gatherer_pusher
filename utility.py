@@ -1,6 +1,19 @@
 from collections import defaultdict
 from hashlib import blake2b
 from typing import Dict, List, Any, Tuple
+import http.client as httplib
+
+
+def internet_on():  # borrowed from https://stackoverflow.com/a/29854274/9723036
+    """ Check whether internet is on """
+    conn = httplib.HTTPConnection("www.google.com", timeout=5)
+    try:
+        conn.request("HEAD", "/")
+        conn.close()
+        return True
+    except Exception:
+        conn.close()
+        return False
 
 
 def make_data_chunk(

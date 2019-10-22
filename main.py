@@ -2,7 +2,7 @@ from multiprocessing import Queue, JoinableQueue
 from collect_data import collect_data
 
 # from db import initialize, insert_mult_rows
-from utility import make_db_insertable_data
+from utility import make_db_insertable_data, internet_on
 from child_process import start_command, start_child, kill_child, kill_cmd
 from time import sleep
 import argparse
@@ -81,6 +81,7 @@ def main(logger):
     CMD = f"./sniff-probes.sh -i {args.interface} --channel_hop"
     RETRY_INTERVAL: int = 10  # wait time before retry database connection or spinning up child processes
     TOTAL_RETRIES: int = 5  # Total number of retries allowed.
+    MAX_OFFLINE_DUR: int = 60  # Max time allowed to wait for device to go online
     wifi_data_q = Queue()  # transmit data from col_data_proc to here
     msg_q = JoinableQueue()  # inform health of child process
 
@@ -135,13 +136,43 @@ def main(logger):
 
         # push data directly to cloud. Currently the pushing frequency is
         # the same as the probing session duration
+        offline_timer = 0
         while msg_q.empty():
-            insertable = make_db_insertable_data(wifi_data_q.get(), True)
-            if insertable:
-                us.send_MQTT(insertable)
-        #            while insertable:
-        #                row_data = insertable.popleft()
-        #                print(row_data)
+            if internet_on():  # internet is on, ready to push MQTT message
+                offline_timer = 0
+                if not us.online:
+                    us.connect()
+
+                # add code to push any data from local database to wifi_data_q
+
+                while not wifi_data_q.empty() and us.online:
+                    raw_data = wifi_data_q.get()
+                    us.send_MQTT(make_db_insertable_data(raw_data, True))
+                    timer = 0
+                    while not us.msg_sent and timer <= 5:
+                        sleep(1)
+                        timer += 1
+                    if timer < 5:  # msg successfully sent
+                        us.msg_sent = False  # set the flag back to false
+                    else:  # msg sent failed.
+                        logger.info(
+                            "MQTT msg not sent. Put back into data queue"
+                        )
+                        wifi_data_q.put(raw_data)  # put the unsent data back
+            # internet is off but we are still waiting
+            elif offline_timer <= MAX_OFFLINE_DUR:
+                logger.warning(f"Device offline for {offline_timer} seconds")
+                offline_timer += 10  # outer loop waits 10s each iteration
+                if not us.offline:  # disconnect client if not already
+                    us.disconnect()
+            else:  # internet is off for too long, push data to database
+                logger.info(
+                    "Internet off for too long. Pushing data to database"
+                )
+
+                # add code to push data from wifi_data_q to local database
+
+            sleep(10)
 
         if not msg_q.empty() and msg_q.get() == "fail":
             msg_q.task_done()

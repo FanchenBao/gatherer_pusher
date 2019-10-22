@@ -13,23 +13,6 @@ with open("config.yaml", "r") as f:
 logger = logging.getLogger("AWSIoTPythonSDK.core")
 
 
-# Function called when a shadow is updated
-def customShadowCallback_Update(payload, responseStatus, token):
-    # Display status and data from update request
-    if responseStatus == "timeout":
-        logger.info("Update request " + token + " time out!")
-
-    if responseStatus == "accepted":
-        payloadDict = json.loads(payload)
-        logger.info("~~~~~~~~~~~~~~~~~~~~~~~")
-        logger.info("Update request with token: " + token + " accepted!")
-        logger.info(payloadDict)
-        logger.info("~~~~~~~~~~~~~~~~~~~~~~~\n\n")
-
-    if responseStatus == "rejected":
-        logger.error("Update request " + token + " rejected!")
-
-
 class UploadService:
     """ A class to handle uploading probe request data via MQTT to aws IoT.
     """
@@ -51,16 +34,77 @@ class UploadService:
         self.myShadowClient.configureAutoReconnectBackoffTime(1, 32, 20)
         self.myShadowClient.configureConnectDisconnectTimeout(10)
         self.myShadowClient.configureMQTTOperationTimeout(5)
-        self.myShadowClient.connect()
+        self.myDeviceShadow = None
 
+        # set up callbacks for online and offline situation
+        self.myShadowClient.onOnline = self.my_online_callback
+        self.myShadowClient.onOffline = self.my_offline_callback
+        self.connect()
+
+        # flags
+        self.msg_sent = False
+        self.online = False
+        self.offline = True
+
+    def send_MQTT(self, insertable):
+        """
+        send serialized `insertable`, which is a List of Tuples to aws
+        iot via MQTT.
+
+        Args:
+            insertable:     A list of tuples, with each tuple representing a row
+        Returns:
+            None
+        Raises:
+            None
+        """
+        payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
+        try:
+            self.myDeviceShadow.shadowUpdate(
+                json.dumps(payload), self.customShadowCallback_Update, 5
+            )
+        except Exception as e:
+            logger.error(f"Error in sending MQTT: {e}")
+        time.sleep(1)
+
+    def connect(self):
+        """ connect shadow client and create shadow handler """
+        self.myShadowClient.connect()
         # Create a programmatic representation of the shadow.
         self.myDeviceShadow = self.myShadowClient.createShadowHandlerWithName(
             aws_iot_config.SHADOW_HANDLER, True
         )
 
-    def send_MQTT(self, insertable):
-        payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
-        self.myDeviceShadow.shadowUpdate(
-            json.dumps(payload), customShadowCallback_Update, 5
-        )
-        time.sleep(1)
+    def disconnect(self):
+        """ disconnect shadow client """
+        self.myShadowClient.disconnect()
+
+    # callbacks
+    # Function called when a shadow is updated
+    def customShadowCallback_Update(self, payload, responseStatus, token):
+        # Display status and data from update request
+        if responseStatus == "timeout":
+            logger.info("Update request " + token + " time out!")
+            self.msg_sent = False
+
+        if responseStatus == "accepted":
+            payloadDict = json.loads(payload)
+            logger.info("~~~~~~~~~~~~~~~~~~~~~~~")
+            logger.info("Update request with token: " + token + " accepted!")
+            logger.info(payloadDict)
+            logger.info("~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+            self.msg_sent = True
+
+        if responseStatus == "rejected":
+            logger.error("Update request " + token + " rejected!")
+            self.msg_sent = False
+
+    def my_online_callback(self):
+        logger.info(f"{aws_iot_config.SHADOW_CLIENT} ONLINE.")
+        self.online = True
+        self.offline = False
+
+    def my_offline_callback(self):
+        logger.info(f"{aws_iot_config.SHADOW_CLIENT} OFFLINE.")
+        self.offline = True
+        self.online = False
