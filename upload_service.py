@@ -58,8 +58,8 @@ class UploadService:
             aws_iot_config.SHADOW_HANDLER, True
         )
 
-    def send_MQTT(self, payload):
-        logger.debug("send_MQTT called")
+    def send_MQTT(self, insertable):
+        payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
         self.myDeviceShadow.shadowUpdate(
             json.dumps(payload), customShadowCallback_Update, 5
         )

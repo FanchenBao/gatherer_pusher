@@ -139,9 +139,9 @@ def main(logger):
             insertable = make_db_insertable_data(wifi_data_q.get(), True)
             if insertable:
                 us.send_MQTT(insertable)
-            while insertable:
-                row_data = insertable.popleft()
-                print(row_data)
+        #            while insertable:
+        #                row_data = insertable.popleft()
+        #                print(row_data)
 
         if not msg_q.empty() and msg_q.get() == "fail":
             msg_q.task_done()

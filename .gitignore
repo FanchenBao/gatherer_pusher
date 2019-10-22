@@ -173,4 +173,4 @@ GitHub.sublime-settings
 # ignore the cerf and pem
 connect_device_package/
 # ignore log
-**/.*log
+**/*.log
