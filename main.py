@@ -146,6 +146,7 @@ def main(logger):
                 # add code to push any data from local database to wifi_data_q
 
                 while not wifi_data_q.empty() and us.online:
+                    print(f"****** queue size: {wifi_data_q.qsize()} ****")
                     raw_data = wifi_data_q.get()
                     us.send_MQTT(make_db_insertable_data(raw_data, True))
                     timer = 0

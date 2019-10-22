@@ -84,15 +84,15 @@ class UploadService:
     def customShadowCallback_Update(self, payload, responseStatus, token):
         # Display status and data from update request
         if responseStatus == "timeout":
-            logger.info("Update request " + token + " time out!")
+            logger.debug("Update request " + token + " time out!")
             self.msg_sent = False
 
         if responseStatus == "accepted":
             payloadDict = json.loads(payload)
-            logger.info("~~~~~~~~~~~~~~~~~~~~~~~")
-            logger.info("Update request with token: " + token + " accepted!")
-            logger.info(payloadDict)
-            logger.info("~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+            logger.debug("~~~~~~~~~~~~~~~~~~~~~~~")
+            logger.debug("Update request with token: " + token + " accepted!")
+            logger.debug(payloadDict)
+            logger.debug("~~~~~~~~~~~~~~~~~~~~~~~\n\n")
             self.msg_sent = True
 
         if responseStatus == "rejected":
