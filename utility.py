@@ -1,4 +1,4 @@
-from collections import defaultdict, deque
+from collections import defaultdict
 from hashlib import blake2b
 from typing import Dict, List, Any, Tuple, Deque
 
@@ -54,7 +54,7 @@ def hash_mac(mac_address: str) -> str:
 
 def make_db_insertable_data(
     data_chunk: Dict[int, Dict[str, Dict[str, List[Any]]]], is_wifi: bool
-) -> Deque[Tuple[str, bool, bool, str, int, int]]:
+) -> List[Tuple[str, bool, bool, str, int, int]]:
     """
     Process data_chunk to generate a list of tuples that are insertable to sqlite
 
@@ -68,7 +68,7 @@ def make_db_insertable_data(
     Raises:
         None
     """
-    insertable: Deque[Tuple[str, bool, bool, str, int, int]] = deque()
+    insertable: List[Tuple[str, bool, bool, str, int, int]] = []
     for channel, mac_dict in data_chunk.items():
         for mac_address, v in mac_dict.items():
             insertable.append(
