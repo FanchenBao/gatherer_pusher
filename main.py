@@ -10,6 +10,7 @@ import logging
 import logging.config
 import yaml
 import os
+from upload_service import UploadService
 
 # import sys
 
@@ -77,7 +78,7 @@ def main(logger):
     # schema WITHOUT the autoincremented rowid (i.e. probeId in this context)
     # SCHEMA = "macAddress,isPhysical,isWifi,captureTime,rssi,channel"
     # main.py must be right outside `sniff-probes` folder.
-    CMD = f"sniff-probes.sh -i {args.interface} --channel_hop"
+    CMD = f"./sniff-probes.sh -i {args.interface} --channel_hop"
     RETRY_INTERVAL: int = 10  # wait time before retry database connection or spinning up child processes
     TOTAL_RETRIES: int = 5  # Total number of retries allowed.
     wifi_data_q = Queue()  # transmit data from col_data_proc to here
@@ -87,6 +88,7 @@ def main(logger):
     # reinsert: bool = False  # flag, whether re-inserting row is needed.
     # conn = None  # database connection, default to None
     start_process = True  # flag, whether child processes need to be spun up
+    us = UploadService()
     while True:
         if start_process:
             # start probing. Probing never stops
@@ -135,6 +137,8 @@ def main(logger):
         # the same as the probing session duration
         while msg_q.empty():
             insertable = make_db_insertable_data(wifi_data_q.get(), True)
+            if insertable:
+                us.send_MQTT(insertable)
             while insertable:
                 row_data = insertable.popleft()
                 print(row_data)
