@@ -59,16 +59,23 @@ class UploadService:
         """
         # payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
         ret = False  # flag
+        payload = json.dumps(insertable)
+
         try:
             # self.myDeviceShadow.shadowUpdate(
             #     json.dumps(payload), self.customShadowCallback_Update, 5
             # )
+            logger.debug(f"Publishing {payload}")
             ret = self.myAWSIoTMQTTClient.publish(
-                "WPB/probe_requests", json.dumps(insertable), 1
+                "WPB/probe_requests", payload, 1
             )
         except Exception as e:
             logger.error(f"Error in sending MQTT: {e}")
         sleep(6)  # block slightly longer than duration of time out
+        if ret:
+            logger.info("Publish payload to WPB/probe_requests successful.")
+        else:
+            logger.error("Publish payload to WPB/probe_requests FAILED!")
         return ret
 
     def connect(self):
