@@ -21,8 +21,8 @@ class SQLiteDB:
         self.TABLE = DB_CONFIG["TABLE"]
         self.ROW_ID = DB_CONFIG["ROW_ID"]
         self.SCHEMA = DB_CONFIG["SCHEMA"]
-        self.RETRY_INTERVAL = HEALTH_CHECK_CONFIG["RETRY_INTERVAL"]
-        self.TOTAL_RETRIES = HEALTH_CHECK_CONFIG["TOTAL_RETRIES"]
+        self.RETRY_INTERVAL = int(HEALTH_CHECK_CONFIG["RETRY_INTERVAL"])
+        self.TOTAL_RETRIES = int(HEALTH_CHECK_CONFIG["TOTAL_RETRIES"])
         self.conn = None
         self.initialize()
 
@@ -164,7 +164,7 @@ class SQLiteDB:
             logger.exception(f"Error! Cannot delete rows from {self.TABLE}")
 
     def fetch_rows_all_col(
-        self, num_rows
+        self, num_rows: int
     ) -> List[Tuple[str, bool, bool, str, int, int]]:
         """
         Extract the top {num_rows} rows from local database (fetch and delete)

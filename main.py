@@ -105,7 +105,7 @@ def main():
                 while localDB.is_connected():  # extract all data from db
                     # each insertable cannot exceed MAX_ROWS number of rows
                     insertable = localDB.fetch_rows_all_col(
-                        AWS_IOT_CONFIG["MAX_ROWS"]
+                        int(AWS_IOT_CONFIG["MAX_ROWS"])
                     )
                     if insertable:
                         wifi_data_q.put(insertable)
