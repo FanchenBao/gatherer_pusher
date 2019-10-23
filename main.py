@@ -1,7 +1,7 @@
 from multiprocessing import Queue, JoinableQueue
 from collect_data import collect_data
 
-# from db import initialize, insert_mult_rows
+from db import initialize, insert_mult_rows
 from utility import make_db_insertable_data, internet_on
 from child_process import start_command, start_child, kill_child, kill_cmd
 from time import sleep
@@ -64,21 +64,20 @@ def main(logger):
         pass
 
     SESS_DUR = args.session_duration  # monitoring session duration
-    # DB = f"./database/{args.database}"  # database location
-    # TABLE_NAME = args.table_name
-    # CREATE_TABLE = f""" CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-    #                                     probeId INTEGER PRIMARY KEY,
-    #                                     macAddress NVARCHAR(64),
-    #                                     isPhysical BOOLEAN,
-    #                                     isWifi BOOLEAN,
-    #                                     captureTime DATETIME,
-    #                                     rssi INTEGER,
-    #                                     channel INTEGER
-    #                                 ); """
+    DB = f"./database/{args.database}"  # database location
+    TABLE_NAME = args.table_name
+    CREATE_TABLE = f""" CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+                                        probeId INTEGER PRIMARY KEY,
+                                        macAddress NVARCHAR(64),
+                                        isPhysical BOOLEAN,
+                                        isWifi BOOLEAN,
+                                        captureTime DATETIME,
+                                        rssi INTEGER,
+                                        channel INTEGER
+                                    ); """
     # schema WITHOUT the autoincremented rowid (i.e. probeId in this context)
-    # SCHEMA = "macAddress,isPhysical,isWifi,captureTime,rssi,channel"
-    # main.py must be right outside `sniff-probes` folder.
-    CMD = f"./sniff-probes.sh -i {args.interface} --channel_hop"
+    SCHEMA = "macAddress,isPhysical,isWifi,captureTime,rssi,channel"
+    SNIFF_CMD = f"./sniff-probes.sh -i {args.interface} --channel_hop"
     RETRY_INTERVAL: int = 10  # wait time before retry database connection or spinning up child processes
     TOTAL_RETRIES: int = 5  # Total number of retries allowed.
     MAX_OFFLINE_DUR: int = 60  # Max time allowed to wait for device to go online
@@ -87,14 +86,15 @@ def main(logger):
 
     # main loop
     # reinsert: bool = False  # flag, whether re-inserting row is needed.
-    # conn = None  # database connection, default to None
+    conn = None  # local database connection, default to None
     start_process = True  # flag, whether child processes need to be spun up
     us = UploadService()
+    offline_timer = 0  # record duration that the device is off internet
     while True:
         if start_process:
             # start probing. Probing never stops
             probe_proc = start_command(
-                CMD, "Probe Request Sniffing", RETRY_INTERVAL, TOTAL_RETRIES
+                SNIFF_CMD, "Probe Request Sniff", RETRY_INTERVAL, TOTAL_RETRIES
             )
             # start data collection
             col_data_proc = start_child(
@@ -108,14 +108,6 @@ def main(logger):
                 SESS_DUR,
             )
             start_process = False
-
-        # if conn is None:  # initialize database
-        #     conn = initialize(DB, CREATE_TABLE, RETRY_INTERVAL, TOTAL_RETRIES)
-        #     # if db cannot be initiated after multiple retries, end program.
-        #     if not conn:
-        #         kill_cmd(probe_proc, "Probe Request Sniffing")
-        #         kill_child(col_data_proc, "Data Collection")
-        #         sys.exit(1)
 
         # insertable = ""  # dummy, fix "local variable referenced before assign"
         # while conn and msg_q.empty():
@@ -136,42 +128,65 @@ def main(logger):
 
         # push data directly to cloud. Currently the pushing frequency is
         # the same as the probing session duration
-        offline_timer = 0
         while msg_q.empty():
             if internet_on():  # internet is on, ready to push MQTT message
                 offline_timer = 0
                 if not us.online:
                     us.connect()
-
+                ##############################################################
                 # add code to push any data from local database to wifi_data_q
+                ##############################################################
 
                 while not wifi_data_q.empty() and us.online:
-                    print(f"****** queue size: {wifi_data_q.qsize()} ****")
+                    logger.debug(
+                        f"**** queue size: {wifi_data_q.qsize()} ****"
+                    )
                     raw_data = wifi_data_q.get()
                     us.send_MQTT(make_db_insertable_data(raw_data, True))
-                    timer = 0
-                    while not us.msg_sent and timer <= 5:
-                        sleep(1)
-                        timer += 1
-                    if timer < 5:  # msg successfully sent
-                        us.msg_sent = False  # set the flag back to false
-                    else:  # msg sent failed.
+                    us.check_msg_sent()
+                    if not us.msg_sent:  # msg sent failed.
                         logger.info(
                             "MQTT msg not sent. Put back into data queue"
                         )
                         wifi_data_q.put(raw_data)  # put the unsent data back
+                        logger.info("Close shadow client connection and retry")
+                        us.disconnect()
+
             # internet is off but we are still waiting
             elif offline_timer <= MAX_OFFLINE_DUR:
                 logger.warning(f"Device offline for {offline_timer} seconds")
                 offline_timer += 10  # outer loop waits 10s each iteration
                 if not us.offline:  # disconnect client if not already
                     us.disconnect()
+
             else:  # internet is off for too long, push data to database
                 logger.info(
                     "Internet off for too long. Pushing data to database"
                 )
-
-                # add code to push data from wifi_data_q to local database
+                if conn is None:  # initialize database
+                    conn = initialize(
+                        DB, CREATE_TABLE, RETRY_INTERVAL, TOTAL_RETRIES
+                    )
+                while not wifi_data_q.empty() and conn:
+                    logger.debug(
+                        f"**** queue size: {wifi_data_q.qsize()} ****"
+                    )
+                    raw_data = wifi_data_q.get()
+                    # insert data to local db
+                    if not insert_mult_rows(
+                        conn,
+                        make_db_insertable_data(raw_data, True),
+                        TABLE_NAME,
+                        SCHEMA,
+                    ):
+                        # insertion failed
+                        logger.info(
+                            "Insert data to db failed. Put back into data queue"
+                        )
+                        wifi_data_q.put(raw_data)  # put the unsent data back
+                        logger.info("Close db connection and retry")
+                        conn.close()
+                        conn = None
 
             sleep(10)
 

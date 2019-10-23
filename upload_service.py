@@ -1,7 +1,7 @@
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTShadowClient
 import aws_iot_config
 import json
-import time
+from time import sleep
 import logging
 import logging.config
 import yaml
@@ -64,11 +64,22 @@ class UploadService:
             )
         except Exception as e:
             logger.error(f"Error in sending MQTT: {e}")
-        time.sleep(1)
+        sleep(1)
+
+    def check_msg_sent(self):
+        """
+        Check whether the msg has been sent. It blocks until the check is complete
+        """
+        timer = 0
+        while not self.msg_sent and timer <= 5:
+            sleep(1)
+            timer += 1
+        self.msg_sent = False if timer > 5 else True
 
     def connect(self):
         """ connect shadow client and create shadow handler """
         self.myShadowClient.connect()
+        sleep(10)  # block for stable connection
         # Create a programmatic representation of the shadow.
         self.myDeviceShadow = self.myShadowClient.createShadowHandlerWithName(
             aws_iot_config.SHADOW_HANDLER, True
@@ -77,6 +88,7 @@ class UploadService:
     def disconnect(self):
         """ disconnect shadow client """
         self.myShadowClient.disconnect()
+        sleep(10)  # block for clear disconnection
 
     # callbacks
     # Function called when a shadow is updated
