@@ -8,75 +8,69 @@ from time import sleep
 
 
 # set up logger
-with open("config.yaml", "r") as f:
+with open("logger_config.yaml", "r") as f:
     config = yaml.safe_load(f.read())
     logging.config.dictConfig(config)
 logger = logging.getLogger("child_process")
 
 
-def start_command(
-    CMD: str, name: str, retry_interval: int, total_retries: int
-):
+def start_command(CMD: str, name: str, HEALTH_CHECK_CONFIG):
     """
     Run a command in a child process, and pipe its stdout through Popen's PIPE,
     such that the output can be picked up elsewhere in the program
 
     Args:
-        CMD:            Command to be run.
-        name:           Name of the child process
-        retry_interval: How much time (in seconds) to wait in between retry
-                        attempts.
-        total_retries:  Max number of repeated retries allowed.
+        CMD:                    Command to be run.
+        name:                   Name of the child process
+        HEALTH_CHECK_CONFIG:    Config for TOTAL_RETRIES and RETRY_INTERVAL
     Return:
         An object generated from `Popen`, running the command
     Raises:
         Any exception if `Popen` fails to create a child process
     """
-    while total_retries:
+    retries = 0
+    while retries <= HEALTH_CHECK_CONFIG["TOTAL_RETRIES"]:
         try:
             cmd_process = Popen(CMD, shell=True, stdout=PIPE, bufsize=1)
             logger.info(f"{name} process successfully created!")
             return cmd_process
         except Exception:
             logger.exception(f"Error! Cannot start {name} process.")
-            total_retries -= 1
-            sleep(retry_interval)
+            retries += 1
+            sleep(HEALTH_CHECK_CONFIG["RETRY_INTERVAL"])
     logger.error(
-        f"Maximum retry attempts ({total_retries}) exceeded. {name} process cannot be created."
+        f"Maximum retry attempts ({HEALTH_CHECK_CONFIG['TOTAL_RETRIES']}) exceeded. {name} process cannot be created."
     )
     sys.exit(1)
 
 
-def start_child(
-    func, name: str, retry_interval: int, total_retries: int, *args
-):
+def start_child(func, name: str, HEALTH_CHECK_CONFIG, *args):
     """
     Start a child process running `func` with arguments input from `args`
 
     Args:
-        func:           The function to be run in the child process.
-        name:           Name of the child process.
-        retry_interval: How much time (in seconds) to wait in between retry
-                        attempts.
-        total_retries:  Max number of repeated retries allowed.
-        args:           List of arguments to be passed to func
+        func:                   The function to be run in the child process.
+        name:                   Name of the child process.
+        HEALTH_CHECK_CONFIG:    Config for TOTAL_RETRIES and RETRY_INTERVAL
+        args:                   List of arguments to be passed to func
     Return:
         An object generated from `Process`, running `func`.
     Raises:
         Any exception if `Process` fails to create a child process
     """
     child_proc = Process(target=func, args=args)
-    while total_retries:
+    retries = 0
+    while retries <= HEALTH_CHECK_CONFIG["TOTAL_RETRIES"]:
         try:
             child_proc.start()
             logger.info(f"{name} process successfully created!")
             return child_proc
         except Exception:
             logger.exception(f"Error! Cannot start {name} process.")
-            total_retries -= 1
-            sleep(retry_interval)
+            retries += 1
+            sleep(HEALTH_CHECK_CONFIG["RETRY_INTERVAL"])
     logger.error(
-        f"Maximum retry attempts ({total_retries}) exceeded. {name} process cannot be created."
+        f"Maximum retry attempts ({HEALTH_CHECK_CONFIG['TOTAL_RETRIES']}) exceeded. {name} process cannot be created."
     )
     sys.exit(1)
 

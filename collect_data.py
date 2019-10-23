@@ -8,7 +8,7 @@ import yaml
 
 
 # set up logger
-with open("config.yaml", "r") as f:
+with open("logger_config.yaml", "r") as f:
     config = yaml.safe_load(f.read())
     logging.config.dictConfig(config)
 logger = logging.getLogger("collect_data")
