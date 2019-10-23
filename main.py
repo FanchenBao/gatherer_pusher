@@ -68,11 +68,11 @@ def main():
         pass
 
     # Key data structures
-    wifi_data_q = Queue()  # transmit data from col_data_proc to here
+    data_q = Queue()  # transmit data from col_data_proc to here
     msg_q = JoinableQueue()  # inform health of child process
     localDB = db.SQLiteDB(DB_CONFIG, HEALTH_CHECK_CONFIG)  # local database
-    start_process = True  # flag, whether child processes need to be spun up
     us = upload_service.UploadService(AWS_IOT_CONFIG)  # aws iot MQTT client
+    start_process = True  # flag, whether child processes need to be spun up
     offline_timer = 0  # record duration that the device is off internet
 
     # main loop
@@ -88,7 +88,7 @@ def main():
                 "Data Collection",
                 HEALTH_CHECK_CONFIG,
                 probe_proc,
-                wifi_data_q,
+                data_q,
                 msg_q,
                 SESS_DUR,
             )
@@ -102,60 +102,36 @@ def main():
                 if not us.online:
                     us.connect()
 
-                while localDB.is_connected():  # extract all data from db
-                    # each insertable cannot exceed MAX_ROWS number of rows
-                    insertable = localDB.fetch_rows_all_col(
-                        int(AWS_IOT_CONFIG["MAX_ROWS"])
-                    )
-                    if insertable:
-                        wifi_data_q.put(insertable)
-                    else:
-                        # when no more data can be extracted from db, close db
-                        localDB.close_connection()
-                        break
+                # check to see if there is anything remaining in localDB
+                # If there is, take at most MAX_ROWS of them out each time
+                # If not, close localDB
+                if not localDB.push_to_queue(
+                    data_q, int(AWS_IOT_CONFIG["MAX_ROWS"])
+                ):
+                    localDB.close_connection()
 
-                while not wifi_data_q.empty() and us.online:
-                    logger.debug(
-                        f"**** queue size: {wifi_data_q.qsize()} ****"
-                    )
-                    insertable = wifi_data_q.get()
-                    if not us.send_MQTT(insertable):  # msg sent failed.
-                        logger.info(
-                            "MQTT msg not sent. Put back into data queue"
-                        )
-                        wifi_data_q.put(insertable)  # put the unsent data back
-                        logger.info("Close MQTT client connection and retry")
-                        us.disconnect()
+                # send a batch of data from data_q to aws iot. If sending faiks
+                # disconnect with MQTT client and try again
+                if not us.send_MQTT(data_q):
+                    logger.info("Close MQTT client connection and retry")
+                    us.disconnect()
 
             # internet is off but we are still waiting
-            elif offline_timer <= HEALTH_CHECK_CONFIG["MAX_OFFLINE_DUR"]:
+            elif offline_timer <= int(HEALTH_CHECK_CONFIG["MAX_OFFLINE_DUR"]):
                 logger.warning(f"Device offline for {offline_timer} seconds")
                 offline_timer += 5  # outer loop waits 10s each iteration
                 if not us.offline:  # disconnect client if not already
                     us.disconnect()
 
-            else:  # internet is off for too long, push data to database
-                logger.info(
-                    "Internet off for too long. Pushing data to database"
-                )
-                if not localDB.is_connected():  # initialize database
-                    localDB.initialize()
-                while not wifi_data_q.empty() and localDB.is_connected():
-                    logger.debug(
-                        f"**** queue size: {wifi_data_q.qsize()} ****"
-                    )
-                    insertable = wifi_data_q.get()
-                    # insert data to local db
-                    if not localDB.insert_mult_rows(insertable):
-                        # insertion failed
-                        logger.info(
-                            "Insert data to db failed. Put back into data queue"
-                        )
-                        wifi_data_q.put(insertable)  # put the unsent data back
-                        logger.info("Close db connection and retry")
-                        localDB.close_connection()
+            # internet is off for too long, push all data from queue to localDB
+            # for stable storage. If such push fails, close localDB and try again.
+            else:
+                logger.info("Internet off for too long. Push data to database")
+                if not localDB.extract_from_queue(data_q):
+                    logger.info("Close db connection and retry")
+                    localDB.close_connection()
 
-            sleep(5)
+            sleep(1)
 
         # This code is hit whenever a "fail" message is pushed to `msg_q`
         if not msg_q.empty() and msg_q.get() == "fail":

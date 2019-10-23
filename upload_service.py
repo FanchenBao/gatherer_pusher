@@ -4,6 +4,7 @@ from time import sleep
 import logging
 import logging.config
 import yaml
+from typing import List, Tuple
 
 # set up logger
 with open("logger_config.yaml", "r") as f:
@@ -39,25 +40,47 @@ class UploadService:
         # Persistent param
         self.CLIENT_ID = AWS_IOT_CONFIG["CLIENT_ID"]
         self.TOPIC = AWS_IOT_CONFIG["TOPIC"]
+        self.MAX_ROWS = int(AWS_IOT_CONFIG["MAX_ROWS"])
 
         # flags
         self.online = False
         self.offline = True
 
-    def send_MQTT(self, insertable):
+    def make_batch(
+        self, data_q
+    ) -> List[Tuple[str, bool, bool, str, int, int]]:
         """
-        send serialized `insertable`, which is a List of Tuples to aws
-        iot via MQTT.
+        Make a batch of rows to be sent via MQTT in one shot
 
         Args:
-            insertable:     A list of tuples, with each tuple representing a row
+            data_q:     The data queue from which we get row data to make batch
         Returns:
-            None
+            A list of tuple, representing a batch of data to be sent.
         Raises:
             None
         """
+        batch_size: int = 0
+        batch: List[Tuple[str, bool, bool, str, int, int]] = []
+        while not data_q.empty() and batch_size <= self.MAX_ROWS:
+            batch.append(data_q.get())
+            batch_size += 1
+        return batch
+
+    def send_MQTT(self, data_q) -> bool:
+        """
+        Send a batch of rows via MQTT to aws iot. If sending fails, put the
+        unsent data back into data_q.
+
+        Args:
+            data_q:     The data queue from which we get row to send via MQTT
+        Returns:
+            True if data sending succeeds, otherwise False.
+        Raises:
+            None
+        """
+        batch = self.make_batch(data_q)
+        payload = json.dumps(batch)
         ret = False  # flag
-        payload = json.dumps(insertable)
         try:
             logger.debug(f"Publishing {payload}")
             ret = self.myAWSIoTMQTTClient.publish(self.TOPIC, payload, 1)
@@ -66,8 +89,11 @@ class UploadService:
         sleep(6)  # block slightly longer than duration of time out
         if ret:
             logger.info(f"Publish payload to {self.TOPIC} successful.")
-        else:
+        else:  # msg sent failed.
             logger.error(f"Publish payload to {self.TOPIC} FAILED!")
+            logger.info("MQTT msg not sent. Put back into data queue")
+            while batch:
+                data_q.put(batch.pop())  # put the unsent data back
         return ret
 
     def connect(self):

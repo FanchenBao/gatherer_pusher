@@ -125,7 +125,8 @@ class SQLiteDB:
 
     def insert_row(self, row_data) -> bool:
         """
-        Insert a row into the database connected with conn
+        Insert a row into the database connected with conn.
+        *******  NOTE This function DOES NOT COMMIT!!  ******
         :param row_data: insertable data repr the row
         :return: True if row insertion succeeds, otherwise false
         """
@@ -171,14 +172,12 @@ class SQLiteDB:
         Args:
             num_rows:       Number of rows to be fetched
         Return:
-            A list of tuples with each tuple representing a row of data. This list
-            is known as `insertable` in main.py and is also the element in
-            wifi_data_q. After getting `insertable`, the corresponding rows in the
-            table are deleted.
+            A list of tuples with each tuple representing a row of data. After
+            getting all the rows, the corresponding rows in the table are deleted.
         Raises:
             None
         """
-        insertable: List[Tuple[str, bool, bool, str, int, int]] = []
+        rows: List[Tuple[str, bool, bool, str, int, int]] = []
         with self.conn:
             for r in self.select_rows(self.SCHEMA, num_rows):
                 # see doc: https://docs.python.org/3/library/sqlite3.html#sqlite3.Row
@@ -192,12 +191,12 @@ class SQLiteDB:
                     int(r["channel"]),
                 )
                 logger.debug(f"Fetched row: {row}")
-                insertable.append(row)
-            if len(insertable) > 0:
-                self.delete_rows(len(insertable))
+                rows.append(row)
+            if len(rows) > 0:
+                self.delete_rows(len(rows))
             else:
                 logger.info("Fetched 0 rows")
-        return insertable
+        return rows
 
     def insert_mult_rows(
         self, rows: List[Tuple[str, bool, bool, str, int, int]]
@@ -222,3 +221,52 @@ class SQLiteDB:
             self.conn.commit()
             sleep(1)
         return is_successful
+
+    def push_to_queue(self, data_q, num_rows: int):
+        """
+        Extract {num_rows} rows from db and put them row by row in a queue.
+
+        Args:
+            data_q:         A queue into which the rows are to be pushed
+            num_rows:       Number of rows to extract and put in queue
+        Returns:
+            None
+        Raises:
+            None
+        """
+        row_pushed: bool = False  # flag
+        if self.is_connected():
+            # each rows cannot exceed MAX_ROWS number of rows
+            rows = self.fetch_rows_all_col(num_rows)
+            while rows:
+                row_pushed = True
+                data_q.put(rows.pop())
+        return row_pushed
+
+    def extract_from_queue(self, data_q):
+        """
+        Extract all data rows from data_q and put them in local db for stable
+        storage. If extraction fails, put the data back into data_q.
+
+        Args:
+            data_q:     A queue from which rows are extracted.
+        Returns:
+            None
+        Raises:
+            None
+        """
+        if not self.is_connected():  # initialize database if necessary
+            self.initialize()
+        # collect all rows into a list
+        rows: List[Tuple[str, bool, bool, str, int, int]] = []
+        while not data_q.empty():
+            rows.append(data_q.get())
+        # insert all rows to local db
+        insert_success = False
+        if self.is_connected():
+            insert_success = self.insert_mult_rows(rows)
+        if not insert_success:  # insertion failed
+            logger.info("Insert data to db failed. Put back into data queue")
+            while rows:
+                data_q.put(rows.pop())  # put the unsent data back
+        return insert_success
