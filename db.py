@@ -46,16 +46,16 @@ def create_table(conn, create_table_sql) -> bool:
         return False
 
 
-def select_rows(conn, table_name: str, num_rows: int, col_names: str):
+def select_rows(conn, table_name: str, col_names: str, num_rows: int):
     """
     Select {num_rows} from {table_name} with the given {col_names}
     Args:
         conn:           Connection object to database
         table_name:     Name of the table
-        num_rows:       Number of rows to be selected
         col_names:      Column names to be associated with each row. Use '*' to
                         select all columns; otherwise provide a string of col
                         names separated by comma, e.g. 'date, weather, city'
+        num_rows:       Number of rows to be selected
     Returns:
         An list of rows selected. If no row is selected, return empty list.
     Raises:
@@ -97,12 +97,15 @@ def delete_rows(conn, table_name: str, row_id: str, num_rows: int) -> None:
         logger.exception(f"Error! Cannot delete rows from {table_name}")
 
 
-def fetch_rows(conn, table_name, num_rows) -> List[Tuple[Any, ...]]:
+def fetch_rows(conn, table_name, col_names, num_rows) -> List[Tuple[Any, ...]]:
     """
     Extract the top {num_rows} rows from local database (fetch and delete)
     Args:
         conn:           Connection object to database
         table_name:     Name of the table
+        col_names:      Column names to be associated with each row. Use '*' to
+                        select all columns; otherwise provide a string of col
+                        names separated by comma, e.g. 'date, weather, city'
         num_rows:       Number of rows to be fetched
     Return:
         A list of tuples with each tuple representing a row of data. This list
@@ -114,13 +117,15 @@ def fetch_rows(conn, table_name, num_rows) -> List[Tuple[Any, ...]]:
     """
     insertable: List[Tuple[Any, ...]] = []
     with conn:
-        for r in select_rows(conn, table_name, num_rows, "*"):
+        for r in select_rows(conn, table_name, col_names, num_rows):
             # see doc: https://docs.python.org/3/library/sqlite3.html#sqlite3.Row
             # for a description of sqlite3.Row object.
             insertable.append(tuple(r))
             logger.debug(f"Fetched row: {tuple(r)}")
         if len(insertable) > 0:
             delete_rows(conn, table_name, "probeid", len(insertable))
+        else:
+            logger.info("Fetched 0 rows")
     return insertable
 
 

@@ -119,7 +119,7 @@ def main(logger):
 
                 while conn is not None:  # extract all data from db
                     # each insertable cannot exceed MAX_ROWS number of rows
-                    insertable = fetch_rows(conn, TABLE_NAME, MAX_ROWS)
+                    insertable = fetch_rows(conn, TABLE_NAME, SCHEMA, MAX_ROWS)
                     if insertable:
                         wifi_data_q.put(insertable)
                     else:
