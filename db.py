@@ -24,6 +24,7 @@ def create_connection(db_file):
     conn = None
     try:
         conn = sqlite3.connect(db_file)
+        conn.row_factory = sqlite3.Row
         logger.info("Database successfully connected.")
     except Error:
         logger.exception("Error! Cannot establish database connection.")
