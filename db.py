@@ -61,15 +61,12 @@ def select_rows(conn, table_name: str, num_rows: int, col_names: str):
     Raises:
         None
     """
-
-    def param_gen():
-        for param in col_names.split(",") + [table_name, str(num_rows)]:
-            yield (param,)
-
     rows: List[Any] = []
     try:
         cur = conn.cursor()
-        cur.execute("SELECT ? FROM ? LIMIT ?", param_gen())
+        cur.execute(
+            f"SELECT {col_names} FROM {table_name} LIMIT ?", (num_rows,)
+        )
         rows = cur.fetchall()
         logger.info("Successfully executed 'SELECT' query.")
     except Error:
@@ -93,8 +90,7 @@ def delete_rows(conn, table_name: str, row_id: str, num_rows: int) -> None:
     try:
         cur = conn.cursor()
         cur.execute(
-            "DELETE FROM ? ORDER BY ? LIMIT ?",
-            (table_name, row_id, str(num_rows)),
+            f"DELETE FROM {table_name} ORDER BY ? LIMIT ?", (row_id, num_rows)
         )
         logger.info("Successfully deleted {num_rows} rows.")
     except Error:
