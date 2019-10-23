@@ -81,7 +81,7 @@ def main(logger):
     RETRY_INTERVAL: int = 10  # wait time before retry database connection or spinning up child processes
     TOTAL_RETRIES: int = 5  # Total number of retries allowed.
     MAX_OFFLINE_DUR: int = 60  # Max time allowed to wait for device to go online
-    MAX_ROWS: int = 1800  # Max number of rows that can be sent via MQTT in one shot
+    MAX_ROWS: int = 10  # Max number of rows that can be sent via MQTT in one shot
 
     wifi_data_q = Queue()  # transmit data from col_data_proc to here
     msg_q = JoinableQueue()  # inform health of child process

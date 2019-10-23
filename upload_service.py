@@ -58,6 +58,7 @@ class UploadService:
             None
         """
         payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
+        logger.debug(f"The string to be sent {json.dumps(payload)}")
         try:
             self.myDeviceShadow.shadowUpdate(
                 json.dumps(payload), self.customShadowCallback_Update, 5
