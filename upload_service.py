@@ -20,7 +20,7 @@ class UploadService:
         # Create, configure, and connect a MQTT client.
         self.myAWSIoTMQTTClient = AWSIoTMQTTClient(AWS_IOT_CONFIG["CLIENT_ID"])
         self.myAWSIoTMQTTClient.configureEndpoint(
-            AWS_IOT_CONFIG["ENDPOINT"], AWS_IOT_CONFIG["PORT"]
+            AWS_IOT_CONFIG["ENDPOINT"], int(AWS_IOT_CONFIG["PORT"])
         )
         self.myAWSIoTMQTTClient.configureCredentials(
             AWS_IOT_CONFIG["ROOT_CA"],
