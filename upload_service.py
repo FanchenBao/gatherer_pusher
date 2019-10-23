@@ -1,4 +1,4 @@
-from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTShadowClient
+from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 import aws_iot_config
 import json
 from time import sleep
@@ -19,26 +19,26 @@ class UploadService:
 
     def __init__(self):
         # Create, configure, and connect a shadow client.
-        self.myShadowClient = AWSIoTMQTTShadowClient(
+        self.myAWSIoTMQTTClient = AWSIoTMQTTClient(
             aws_iot_config.SHADOW_CLIENT
         )
-        self.myShadowClient.configureEndpoint(
+        self.myAWSIoTMQTTClient.configureEndpoint(
             aws_iot_config.HOST_NAME, aws_iot_config.PORT
         )
-        self.myShadowClient.configureCredentials(
+        self.myAWSIoTMQTTClient.configureCredentials(
             aws_iot_config.ROOT_CA,
             aws_iot_config.PRIVATE_KEY,
             aws_iot_config.CERT_FILE,
         )
         # AWSIoTMQTTShadowClient connection configuration
-        self.myShadowClient.configureAutoReconnectBackoffTime(1, 32, 20)
-        self.myShadowClient.configureConnectDisconnectTimeout(10)
-        self.myShadowClient.configureMQTTOperationTimeout(5)
-        self.myDeviceShadow = None
+        self.myAWSIoTMQTTClient.configureAutoReconnectBackoffTime(1, 32, 20)
+        self.myAWSIoTMQTTClient.configureConnectDisconnectTimeout(10)
+        self.myAWSIoTMQTTClient.configureMQTTOperationTimeout(5)
+        # self.myDeviceShadow = None
 
         # set up callbacks for online and offline situation
-        self.myShadowClient.onOnline = self.my_online_callback
-        self.myShadowClient.onOffline = self.my_offline_callback
+        self.myAWSIoTMQTTClient.onOnline = self.my_online_callback
+        self.myAWSIoTMQTTClient.onOffline = self.my_offline_callback
 
         # flags
         self.msg_sent = False
@@ -57,28 +57,31 @@ class UploadService:
         Raises:
             None
         """
-        payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
-        logger.debug(f"The string to be sent {json.dumps(payload)}")
+        # payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
         try:
-            self.myDeviceShadow.shadowUpdate(
-                json.dumps(payload), self.customShadowCallback_Update, 5
+            # self.myDeviceShadow.shadowUpdate(
+            #     json.dumps(payload), self.customShadowCallback_Update, 5
+            # )
+            ret = self.myAWSIoTMQTTClient.publish(
+                "WPB/probe_requests", json.dumps(insertable)
             )
         except Exception as e:
             logger.error(f"Error in sending MQTT: {e}")
         sleep(6)  # block slightly longer than duration of time out
+        return ret
 
     def connect(self):
         """ connect shadow client and create shadow handler """
-        self.myShadowClient.connect()
+        self.myAWSIoTMQTTClient.connect()
         # Create a programmatic representation of the shadow.
-        self.myDeviceShadow = self.myShadowClient.createShadowHandlerWithName(
-            aws_iot_config.SHADOW_HANDLER, True
-        )
+        # self.myDeviceShadow = self.myAWSIoTMQTTClient.createShadowHandlerWithName(
+        #     aws_iot_config.SHADOW_HANDLER, True
+        # )
         sleep(1)
 
     def disconnect(self):
         """ disconnect shadow client """
-        self.myShadowClient.disconnect()
+        self.myAWSIoTMQTTClient.disconnect()
         sleep(1)
 
     # callbacks
