@@ -57,14 +57,16 @@ def collect_data(probe_proc, data_q, msg_q, sess_dur):
             # data to q.
             if time() - start_time >= sess_dur:
                 start_time = time()
-                data_q.put(make_db_insertable_data(data_chunk, True))
+                for row in make_db_insertable_data(data_chunk, True):
+                    data_q.put(row)
                 data_chunk.clear()
             # This is for the special situation where probe_proc is to be killed
             # while everything else is running fine. We will send out the last
             # chunk of data before killing col_data_proc.
             if not msg_q.empty() and msg_q.get() == "Kill Imminent":
                 if len(data_chunk):
-                    data_q.put(make_db_insertable_data(data_chunk, True))
+                    for row in make_db_insertable_data(data_chunk, True):
+                        data_q.put(row)
                 msg_q.task_done()  # signal to main process that collect_data can be killed
                 break
     except Exception:
