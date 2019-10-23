@@ -29,7 +29,9 @@ def start_command(CMD: str, name: str, HEALTH_CHECK_CONFIG):
         Any exception if `Popen` fails to create a child process
     """
     retries = 0
-    while retries <= HEALTH_CHECK_CONFIG["TOTAL_RETRIES"]:
+    TOTAL_RETRIES = int(HEALTH_CHECK_CONFIG["TOTAL_RETRIES"])
+    RETRY_INTERVAL = int(HEALTH_CHECK_CONFIG["RETRY_INTERVAL"])
+    while retries <= TOTAL_RETRIES:
         try:
             cmd_process = Popen(CMD, shell=True, stdout=PIPE, bufsize=1)
             logger.info(f"{name} process successfully created!")
@@ -37,9 +39,9 @@ def start_command(CMD: str, name: str, HEALTH_CHECK_CONFIG):
         except Exception:
             logger.exception(f"Error! Cannot start {name} process.")
             retries += 1
-            sleep(HEALTH_CHECK_CONFIG["RETRY_INTERVAL"])
+            sleep(RETRY_INTERVAL)
     logger.error(
-        f"Maximum retry attempts ({HEALTH_CHECK_CONFIG['TOTAL_RETRIES']}) exceeded. {name} process cannot be created."
+        f"Maximum retry attempts ({TOTAL_RETRIES}) exceeded. {name} process cannot be created."
     )
     sys.exit(1)
 
@@ -59,8 +61,10 @@ def start_child(func, name: str, HEALTH_CHECK_CONFIG, *args):
         Any exception if `Process` fails to create a child process
     """
     child_proc = Process(target=func, args=args)
+    TOTAL_RETRIES = int(HEALTH_CHECK_CONFIG["TOTAL_RETRIES"])
+    RETRY_INTERVAL = int(HEALTH_CHECK_CONFIG["RETRY_INTERVAL"])
     retries = 0
-    while retries <= HEALTH_CHECK_CONFIG["TOTAL_RETRIES"]:
+    while retries <= TOTAL_RETRIES:
         try:
             child_proc.start()
             logger.info(f"{name} process successfully created!")
@@ -68,9 +72,9 @@ def start_child(func, name: str, HEALTH_CHECK_CONFIG, *args):
         except Exception:
             logger.exception(f"Error! Cannot start {name} process.")
             retries += 1
-            sleep(HEALTH_CHECK_CONFIG["RETRY_INTERVAL"])
+            sleep(RETRY_INTERVAL)
     logger.error(
-        f"Maximum retry attempts ({HEALTH_CHECK_CONFIG['TOTAL_RETRIES']}) exceeded. {name} process cannot be created."
+        f"Maximum retry attempts ({TOTAL_RETRIES}) exceeded. {name} process cannot be created."
     )
     sys.exit(1)
 
