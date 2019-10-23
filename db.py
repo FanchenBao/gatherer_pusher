@@ -5,7 +5,7 @@ import logging
 import logging.config
 import yaml
 from time import sleep
-from typing import Any, Deque
+from typing import Any, List
 
 
 # set up logger
@@ -68,7 +68,7 @@ def insert_row(conn, row_data, table_name, schema) -> bool:
 
 
 def insert_mult_rows(
-    conn, rows: Deque[Any], table_name: str, schema: str
+    conn, rows: List[Any], table_name: str, schema: str
 ) -> bool:
     """
     Insert multiple rows to a database
@@ -83,15 +83,13 @@ def insert_mult_rows(
         None
     """
     is_successful: bool = True
-    with conn:
-        while rows:
-            row_data = rows.popleft()
-            if not insert_row(conn, row_data, table_name, schema):
-                rows.append(
-                    row_data
-                )  # row_data not inserted, put back to rows
-                is_successful = False
-                break
+    while rows and is_successful:
+        is_successful = insert_row(conn, rows.pop(), table_name, schema)
+    # commit only after all rows have been inserted
+    # If any insertion fails, we will reinsert everything later (this is to
+    # accommodate the logic in main.py)
+    if is_successful:
+        conn.commit()
     return is_successful
 
 
