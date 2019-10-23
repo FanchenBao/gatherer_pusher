@@ -19,9 +19,7 @@ class UploadService:
 
     def __init__(self):
         # Create, configure, and connect a shadow client.
-        self.myAWSIoTMQTTClient = AWSIoTMQTTClient(
-            aws_iot_config.SHADOW_CLIENT
-        )
+        self.myAWSIoTMQTTClient = AWSIoTMQTTClient(aws_iot_config.CLIENT)
         self.myAWSIoTMQTTClient.configureEndpoint(
             aws_iot_config.HOST_NAME, aws_iot_config.PORT
         )
@@ -94,30 +92,30 @@ class UploadService:
 
     # callbacks
     # Function called when a shadow is updated
-    def customShadowCallback_Update(self, payload, responseStatus, token):
-        # Display status and data from update request
-        if responseStatus == "timeout":
-            logger.debug("Update request " + token + " time out!")
-            self.msg_sent = False
+    # def customShadowCallback_Update(self, payload, responseStatus, token):
+    #     # Display status and data from update request
+    #     if responseStatus == "timeout":
+    #         logger.debug("Update request " + token + " time out!")
+    #         self.msg_sent = False
 
-        if responseStatus == "accepted":
-            payloadDict = json.loads(payload)
-            logger.debug("~~~~~~~~~~~~~~~~~~~~~~~")
-            logger.debug("Update request with token: " + token + " accepted!")
-            logger.debug(payloadDict)
-            logger.debug("~~~~~~~~~~~~~~~~~~~~~~~\n\n")
-            self.msg_sent = True
+    #     if responseStatus == "accepted":
+    #         payloadDict = json.loads(payload)
+    #         logger.debug("~~~~~~~~~~~~~~~~~~~~~~~")
+    #         logger.debug("Update request with token: " + token + " accepted!")
+    #         logger.debug(payloadDict)
+    #         logger.debug("~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+    #         self.msg_sent = True
 
-        if responseStatus == "rejected":
-            logger.error("Update request " + token + " rejected!")
-            self.msg_sent = False
+    #     if responseStatus == "rejected":
+    #         logger.error("Update request " + token + " rejected!")
+    #         self.msg_sent = False
 
     def my_online_callback(self):
-        logger.info(f"{aws_iot_config.SHADOW_CLIENT} ONLINE.")
+        logger.info(f"{aws_iot_config.CLIENT} ONLINE.")
         self.online = True
         self.offline = False
 
     def my_offline_callback(self):
-        logger.info(f"{aws_iot_config.SHADOW_CLIENT} OFFLINE.")
+        logger.info(f"{aws_iot_config.CLIENT} OFFLINE.")
         self.offline = True
         self.online = False

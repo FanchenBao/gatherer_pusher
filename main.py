@@ -81,7 +81,7 @@ def main(logger):
     RETRY_INTERVAL: int = 10  # wait time before retry database connection or spinning up child processes
     TOTAL_RETRIES: int = 5  # Total number of retries allowed.
     MAX_OFFLINE_DUR: int = 60  # Max time allowed to wait for device to go online
-    MAX_ROWS: int = 1800  # Max number of rows that can be sent via MQTT in one shot
+    MAX_ROWS: int = 500  # Max number of rows that can be sent via MQTT in one shot
 
     wifi_data_q = Queue()  # transmit data from col_data_proc to here
     msg_q = JoinableQueue()  # inform health of child process
@@ -138,13 +138,13 @@ def main(logger):
                             "MQTT msg not sent. Put back into data queue"
                         )
                         wifi_data_q.put(insertable)  # put the unsent data back
-                        logger.info("Close shadow client connection and retry")
+                        logger.info("Close MQTT client connection and retry")
                         us.disconnect()
 
             # internet is off but we are still waiting
             elif offline_timer <= MAX_OFFLINE_DUR:
                 logger.warning(f"Device offline for {offline_timer} seconds")
-                offline_timer += 10  # outer loop waits 10s each iteration
+                offline_timer += 5  # outer loop waits 10s each iteration
                 if not us.offline:  # disconnect client if not already
                     us.disconnect()
 
@@ -174,7 +174,7 @@ def main(logger):
                         conn.close()
                         conn = None
 
-            sleep(10)
+            sleep(5)
 
         if not msg_q.empty() and msg_q.get() == "fail":
             msg_q.task_done()

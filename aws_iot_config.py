@@ -1,6 +1,6 @@
 # config file containing credentials for connecting to aws IoT
-# A random programmatic shadow client ID.
-SHADOW_CLIENT = "myShadowClient"
+# A random programmatic client ID.
+CLIENT = "myIoTMQTTClient"
 
 # The unique hostname that &IoT; generated for
 # this device.
@@ -21,6 +21,3 @@ PRIVATE_KEY = KEY_DIR + "99f2c83e7b-private.pem.key"
 # &IoT; generated for this device, which you
 # have already saved onto this device.
 CERT_FILE = KEY_DIR + "99f2c83e7b-certificate.pem.crt"
-
-# A programmatic shadow handler name prefix.
-SHADOW_HANDLER = "RPi-4-gatherer-pusher"
