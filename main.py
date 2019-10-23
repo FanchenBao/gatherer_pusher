@@ -143,7 +143,6 @@ def main(logger):
                     )
                     raw_data = wifi_data_q.get()
                     us.send_MQTT(make_db_insertable_data(raw_data, True))
-                    us.check_msg_sent()
                     if not us.msg_sent:  # msg sent failed.
                         logger.info(
                             "MQTT msg not sent. Put back into data queue"

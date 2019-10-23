@@ -90,6 +90,7 @@ def insert_mult_rows(
     # accommodate the logic in main.py)
     if is_successful:
         conn.commit()
+        sleep(1)
     return is_successful
 
 
