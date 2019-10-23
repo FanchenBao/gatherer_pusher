@@ -58,12 +58,13 @@ class UploadService:
             None
         """
         # payload = {"state": {"reported": {"rows": json.dumps(insertable)}}}
+        ret = False  # flag
         try:
             # self.myDeviceShadow.shadowUpdate(
             #     json.dumps(payload), self.customShadowCallback_Update, 5
             # )
             ret = self.myAWSIoTMQTTClient.publish(
-                "WPB/probe_requests", json.dumps(insertable)
+                "WPB/probe_requests", json.dumps(insertable), 1
             )
         except Exception as e:
             logger.error(f"Error in sending MQTT: {e}")
