@@ -56,7 +56,7 @@ def main():
 
     # load app config
     APP_CONFIG = configparser.ConfigParser()
-    APP_CONFIG.read("app.config.ini")
+    APP_CONFIG.read("app_config.ini")
     DB_CONFIG = APP_CONFIG["sqlite"]
     HEALTH_CHECK_CONFIG = APP_CONFIG["health_check"]
     AWS_IOT_CONFIG = APP_CONFIG["aws_iot"]
