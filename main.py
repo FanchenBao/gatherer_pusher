@@ -1,7 +1,7 @@
 from multiprocessing import Queue, JoinableQueue
 from collect_data import collect_data
 
-from db import initialize, insert_mult_rows
+from db import initialize, insert_mult_rows, fetch_rows
 from utility import internet_on
 from child_process import start_command, start_child, kill_child, kill_cmd
 from time import sleep
@@ -81,6 +81,7 @@ def main(logger):
     RETRY_INTERVAL: int = 10  # wait time before retry database connection or spinning up child processes
     TOTAL_RETRIES: int = 5  # Total number of retries allowed.
     MAX_OFFLINE_DUR: int = 60  # Max time allowed to wait for device to go online
+    MAX_ROWS: int = 1800  # Max number of rows that can be sent via MQTT in one shot
     wifi_data_q = Queue()  # transmit data from col_data_proc to here
     msg_q = JoinableQueue()  # inform health of child process
 
@@ -109,23 +110,6 @@ def main(logger):
             )
             start_process = False
 
-        # insertable = ""  # dummy, fix "local variable referenced before assign"
-        # while conn and msg_q.empty():
-        #     # assign new insertable if there is no need to reinsert
-        #     if not reinsert and not wifi_data_q.empty():
-        #         insertable = make_db_insertable_data(wifi_data_q.get(), True)
-        #     # If error occurs during insertion, retry db connection and set
-        #     # `reinsert` to True
-        #     if not insert_mult_rows(conn, insertable, TABLE_NAME, SCHEMA):
-        #         reinsert = True
-        #         conn.close()
-        #         conn = None  # indicate error happens at database level
-        #         break
-        #     else:
-        #         reinsert = False
-
-        # error in data collection or probing
-
         # push data directly to cloud. Currently the pushing frequency is
         # the same as the probing session duration
         while msg_q.empty():
@@ -133,9 +117,17 @@ def main(logger):
                 offline_timer = 0
                 if not us.online:
                     us.connect()
-                ##############################################################
-                # add code to push any data from local database to wifi_data_q
-                ##############################################################
+
+                while conn is not None:  # extract all data from db
+                    # each insertable cannot exceed MAX_ROWS number of rows
+                    insertable = fetch_rows(conn, TABLE_NAME, MAX_ROWS)
+                    if insertable:
+                        wifi_data_q.put(insertable)
+                    else:
+                        # when no more data can be extracted from db, close db
+                        conn.close()
+                        conn = None
+                        break
 
                 while not wifi_data_q.empty() and us.online:
                     logger.debug(

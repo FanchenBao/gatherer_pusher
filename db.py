@@ -5,7 +5,7 @@ import logging
 import logging.config
 import yaml
 from time import sleep
-from typing import Any, List
+from typing import Any, List, Tuple
 
 
 # set up logger
@@ -46,6 +46,88 @@ def create_table(conn, create_table_sql) -> bool:
         return False
 
 
+def select_rows(conn, table_name: str, num_rows: int, col_names: str):
+    """
+    Select {num_rows} from {table_name} with the given {col_names}
+    Args:
+        conn:           Connection object to database
+        table_name:     Name of the table
+        num_rows:       Number of rows to be selected
+        col_names:      Column names to be associated with each row. Use '*' to
+                        select all columns; otherwise provide a string of col
+                        names separated by comma, e.g. 'date, weather, city'
+    Returns:
+        An list of rows selected. If no row is selected, return empty list.
+    Raises:
+        None
+    """
+
+    def param_gen():
+        for param in col_names.split(",") + [table_name, str(num_rows)]:
+            yield (param,)
+
+    rows: List[Any] = []
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT ? FROM ? LIMIT ?", param_gen())
+        rows = cur.fetchall()
+        logger.info("Successfully executed 'SELECT' query.")
+    except Error:
+        logger.exception(f"Error! Cannot select rows from {table_name}")
+    return rows
+
+
+def delete_rows(conn, table_name: str, row_id: str, num_rows: int) -> None:
+    """
+    Delete the top {num_rows} rows sorted by {id}
+    Args:
+        conn:           Connection object to database
+        table_name:     Name of the table
+        row_id:         The id column (primary key, autoincremented)
+        num_rows:       Number of rows to be deleted
+    Returns:
+        None
+    Raises:
+        None
+    """
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM ? ORDER BY ? LIMIT ?",
+            (table_name, row_id, str(num_rows)),
+        )
+        logger.info("Successfully deleted {num_rows} rows.")
+    except Error:
+        logger.exception(f"Error! Cannot delete rows from {table_name}")
+
+
+def fetch_rows(conn, table_name, num_rows) -> List[Tuple[Any, ...]]:
+    """
+    Extract the top {num_rows} rows from local database (fetch and delete)
+    Args:
+        conn:           Connection object to database
+        table_name:     Name of the table
+        num_rows:       Number of rows to be fetched
+    Return:
+        A list of tuples with each tuple representing a row of data. This list
+        is known as `insertable` in main.py and is also the element in
+        wifi_data_q. After getting `insertable`, the corresponding rows in the
+        table are deleted.
+    Raises:
+        None
+    """
+    insertable: List[Tuple[Any, ...]] = []
+    with conn:
+        for r in select_rows(conn, table_name, num_rows, "*"):
+            # see doc: https://docs.python.org/3/library/sqlite3.html#sqlite3.Row
+            # for a description of sqlite3.Row object.
+            insertable.append(tuple(r))
+        logger.info(f"Fetched {len(insertable)} rows from {table_name}")
+        if len(insertable) > 0:
+            delete_rows(conn, table_name, "probeid", len(insertable))
+    return insertable
+
+
 def insert_row(conn, row_data, table_name, schema) -> bool:
     """
     Insert a row into the database connected with conn
@@ -63,12 +145,15 @@ def insert_row(conn, row_data, table_name, schema) -> bool:
         logger.debug(f"Row {row_data} successful inserted.")
         return True
     except Error:
-        logger.exception(f"Erro! Cannot insert row to {table_name}.")
+        logger.exception(f"Error! Cannot insert row to {table_name}.")
         return False
 
 
 def insert_mult_rows(
-    conn, rows: List[Any], table_name: str, schema: str
+    conn,
+    rows: List[Tuple[str, bool, bool, str, int, int]],
+    table_name: str,
+    schema: str,
 ) -> bool:
     """
     Insert multiple rows to a database
