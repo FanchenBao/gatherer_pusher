@@ -97,7 +97,9 @@ def delete_rows(conn, table_name: str, row_id: str, num_rows: int) -> None:
         logger.exception(f"Error! Cannot delete rows from {table_name}")
 
 
-def fetch_rows(conn, table_name, col_names, num_rows) -> List[Tuple[Any, ...]]:
+def fetch_rows(
+    conn, table_name, col_names, num_rows
+) -> List[Tuple[str, bool, bool, str, int, int]]:
     """
     Extract the top {num_rows} rows from local database (fetch and delete)
     Args:
@@ -115,13 +117,21 @@ def fetch_rows(conn, table_name, col_names, num_rows) -> List[Tuple[Any, ...]]:
     Raises:
         None
     """
-    insertable: List[Tuple[Any, ...]] = []
+    insertable: List[Tuple[str, bool, bool, str, int, int]] = []
     with conn:
         for r in select_rows(conn, table_name, col_names, num_rows):
             # see doc: https://docs.python.org/3/library/sqlite3.html#sqlite3.Row
             # for a description of sqlite3.Row object.
-            insertable.append(tuple(r))
-            logger.debug(f"Fetched row: {tuple(r)}")
+            row = (
+                r["macAddress"],
+                r["isPhysical"] == 1,
+                r["isWifi"] == 1,
+                r["captureTime"],
+                int(r["rssi"]),
+                int(r["channel"]),
+            )
+            logger.debug(f"Fetched row: {row}")
+            insertable.append(row)
         if len(insertable) > 0:
             delete_rows(conn, table_name, "probeid", len(insertable))
         else:
