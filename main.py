@@ -82,12 +82,11 @@ def main(logger):
     TOTAL_RETRIES: int = 5  # Total number of retries allowed.
     MAX_OFFLINE_DUR: int = 60  # Max time allowed to wait for device to go online
     MAX_ROWS: int = 1800  # Max number of rows that can be sent via MQTT in one shot
+
     wifi_data_q = Queue()  # transmit data from col_data_proc to here
     msg_q = JoinableQueue()  # inform health of child process
-
-    # main loop
-    # reinsert: bool = False  # flag, whether re-inserting row is needed.
-    conn = None  # local database connection, default to None
+    # local database connection
+    conn = initialize(DB, CREATE_TABLE, RETRY_INTERVAL, TOTAL_RETRIES)
     start_process = True  # flag, whether child processes need to be spun up
     us = UploadService()
     offline_timer = 0  # record duration that the device is off internet
