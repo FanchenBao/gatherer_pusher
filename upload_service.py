@@ -73,7 +73,7 @@ class UploadService:
         self.myDeviceShadow = self.myShadowClient.createShadowHandlerWithName(
             aws_iot_config.SHADOW_HANDLER, True
         )
-        sleep(5)
+        sleep(1)
 
     def disconnect(self):
         """ disconnect shadow client """

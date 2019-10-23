@@ -1,8 +1,7 @@
 from collections import defaultdict
 from time import time
-from copy import deepcopy
 import re
-from utility import make_data_chunk
+from utility import make_data_chunk, make_db_insertable_data
 import logging
 import logging.config
 import yaml
@@ -54,18 +53,18 @@ def collect_data(probe_proc, data_q, msg_q, sess_dur):
                     int(m.group(2)),
                     m.group(1),
                 )
-            # every sess_dur time, we push the chunk of data to q for processing
-            # elsewhere.
+            # every sess_dur time, we process data_chunk and push the processed
+            # data to q.
             if time() - start_time >= sess_dur:
                 start_time = time()
-                data_q.put(deepcopy(data_chunk))
+                data_q.put(make_db_insertable_data(data_chunk, True))
                 data_chunk.clear()
             # This is for the special situation where probe_proc is to be killed
             # while everything else is running fine. We will send out the last
             # chunk of data before killing col_data_proc.
             if not msg_q.empty() and msg_q.get() == "Kill Imminent":
                 if len(data_chunk):
-                    data_q.put(deepcopy(data_chunk))
+                    data_q.put(make_db_insertable_data(data_chunk, True))
                 msg_q.task_done()  # signal to main process that collect_data can be killed
                 break
     except Exception:

@@ -2,7 +2,7 @@ from multiprocessing import Queue, JoinableQueue
 from collect_data import collect_data
 
 from db import initialize, insert_mult_rows
-from utility import make_db_insertable_data, internet_on
+from utility import internet_on
 from child_process import start_command, start_child, kill_child, kill_cmd
 from time import sleep
 import argparse
@@ -141,13 +141,13 @@ def main(logger):
                     logger.debug(
                         f"**** queue size: {wifi_data_q.qsize()} ****"
                     )
-                    raw_data = wifi_data_q.get()
-                    us.send_MQTT(make_db_insertable_data(raw_data, True))
+                    insertable = wifi_data_q.get()
+                    us.send_MQTT(insertable)
                     if not us.msg_sent:  # msg sent failed.
                         logger.info(
                             "MQTT msg not sent. Put back into data queue"
                         )
-                        wifi_data_q.put(raw_data)  # put the unsent data back
+                        wifi_data_q.put(insertable)  # put the unsent data back
                         logger.info("Close shadow client connection and retry")
                         us.disconnect()
 
@@ -170,19 +170,16 @@ def main(logger):
                     logger.debug(
                         f"**** queue size: {wifi_data_q.qsize()} ****"
                     )
-                    raw_data = wifi_data_q.get()
+                    insertable = wifi_data_q.get()
                     # insert data to local db
                     if not insert_mult_rows(
-                        conn,
-                        make_db_insertable_data(raw_data, True),
-                        TABLE_NAME,
-                        SCHEMA,
+                        conn, insertable, TABLE_NAME, SCHEMA
                     ):
                         # insertion failed
                         logger.info(
                             "Insert data to db failed. Put back into data queue"
                         )
-                        wifi_data_q.put(raw_data)  # put the unsent data back
+                        wifi_data_q.put(insertable)  # put the unsent data back
                         logger.info("Close db connection and retry")
                         conn.close()
                         conn = None
