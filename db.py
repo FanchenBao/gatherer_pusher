@@ -92,7 +92,7 @@ def delete_rows(conn, table_name: str, row_id: str, num_rows: int) -> None:
         cur.execute(
             f"DELETE FROM {table_name} ORDER BY ? LIMIT ?", (row_id, num_rows)
         )
-        logger.info("Successfully deleted {num_rows} rows.")
+        logger.info(f"Successfully deleted {num_rows} rows.")
     except Error:
         logger.exception(f"Error! Cannot delete rows from {table_name}")
 
@@ -118,7 +118,7 @@ def fetch_rows(conn, table_name, num_rows) -> List[Tuple[Any, ...]]:
             # see doc: https://docs.python.org/3/library/sqlite3.html#sqlite3.Row
             # for a description of sqlite3.Row object.
             insertable.append(tuple(r))
-        logger.info(f"Fetched {len(insertable)} rows from {table_name}")
+            logger.debug(f"Fetched row: {tuple(r)}")
         if len(insertable) > 0:
             delete_rows(conn, table_name, "probeid", len(insertable))
     return insertable
