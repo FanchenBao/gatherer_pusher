@@ -63,7 +63,7 @@ class UploadService:
         batch: List[Tuple[str, bool, bool, str, int, int]] = []
         # make batch only when there are batch size number of rows available
         if data_q.qsize() >= self.BATCH_SIZE:
-            while not data_q.empty() and batch_size <= self.BATCH_SIZE:
+            while not data_q.empty() and batch_size < self.BATCH_SIZE:
                 batch.append(data_q.get())
                 batch_size += 1
         return batch

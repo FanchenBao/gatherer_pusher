@@ -119,13 +119,14 @@ def main():
             # internet is off but we are still waiting
             elif offline_timer <= int(HEALTH_CHECK_CONFIG["MAX_OFFLINE_DUR"]):
                 logger.warning(f"Device offline for {offline_timer} seconds")
-                offline_timer += 5  # outer loop waits 10s each iteration
+                offline_timer += 1  # outer loop waits 10s each iteration
                 if not us.offline:  # disconnect client if not already
                     us.disconnect()
 
-            # internet is off for too long, push all data from queue to localDB
-            # for stable storage. If such push fails, close localDB and try again.
-            else:
+            # internet is off for too long, push all data from queue (if
+            # available) to localDB for stable storage. If such push fails,
+            # close localDB and try again.
+            elif not data_q.empty():
                 logger.info("Internet off for too long. Push data to database")
                 if not localDB.extract_from_queue(data_q):
                     logger.info("Close db connection and retry")
