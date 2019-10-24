@@ -207,7 +207,9 @@ class SQLiteDB:
         Args:
             rows:       A deque of rows to be inserted
         Returns:
-            True if all insertions are successful, otherwise false
+            False if an error occurs during insertion, otherwise True. This
+            means if nothing is inserted, i.e. `rows` is empty, the return value
+            is still True, because that is not an error.
         Raises:
             None
         """
@@ -232,7 +234,10 @@ class SQLiteDB:
             data_q:         A queue into which the rows are to be pushed
             num_rows:       Number of rows to extract and put in queue
         Returns:
-            None
+            True if some rows are pushed, False if no row is pushed. In other
+            words, True indicates there might still be rows left in the localDB;
+            False indicates localDB is empty. Note that the return value here
+            does NOT indicate success or failure.
         Raises:
             None
         """
@@ -254,7 +259,9 @@ class SQLiteDB:
         Args:
             data_q:     A queue from which rows are extracted.
         Returns:
-            None
+            False if some error occurs during row insertion to localDB,
+            otherwise True. This means if nothing gets inserted to localDB, i.e.
+            data_q is empty, we still return True, because this is not an error.
         Raises:
             None
         """

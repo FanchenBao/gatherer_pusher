@@ -76,7 +76,10 @@ class UploadService:
         Args:
             data_q:     The data queue from which we get row to send via MQTT
         Returns:
-            True if data sending succeeds, otherwise False.
+            True if data sending succeeds, otherwise False. If no data is sent
+            either due to no data present in data_q or fewer than batch size
+            number of rows in data_q, we default to return True because this is
+            not considered an error.
         Raises:
             None
         """
@@ -101,7 +104,7 @@ class UploadService:
                     data_q.put(batch.pop())  # put the unsent data back
             return ret
         else:
-            return True
+            return True  # no data to send, default to return True
 
     def connect(self):
         """ connect shadow client and create shadow handler """
