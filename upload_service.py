@@ -79,22 +79,25 @@ class UploadService:
             None
         """
         batch = self.make_batch(data_q)
-        payload = json.dumps(batch)
-        ret = False  # flag
-        try:
-            logger.debug(f"Publishing {payload}")
-            ret = self.myAWSIoTMQTTClient.publish(self.TOPIC, payload, 1)
-        except Exception as e:
-            logger.error(f"Error in sending MQTT: {e}")
-        sleep(6)  # block slightly longer than duration of time out
-        if ret:
-            logger.info(f"Publish payload to {self.TOPIC} successful.")
-        else:  # msg sent failed.
-            logger.error(f"Publish payload to {self.TOPIC} FAILED!")
-            logger.info("MQTT msg not sent. Put back into data queue")
-            while batch:
-                data_q.put(batch.pop())  # put the unsent data back
-        return ret
+        if batch:
+            payload = json.dumps(batch)
+            ret = False  # flag
+            try:
+                logger.debug(f"Publishing {payload}")
+                ret = self.myAWSIoTMQTTClient.publish(self.TOPIC, payload, 1)
+            except Exception as e:
+                logger.error(f"Error in sending MQTT: {e}")
+            sleep(6)  # block slightly longer than duration of time out
+            if ret:
+                logger.info(f"Publish payload to {self.TOPIC} successful.")
+            else:  # msg sent failed.
+                logger.error(f"Publish payload to {self.TOPIC} FAILED!")
+                logger.info("MQTT msg not sent. Put back into data queue")
+                while batch:
+                    data_q.put(batch.pop())  # put the unsent data back
+            return ret
+        else:
+            return True
 
     def connect(self):
         """ connect shadow client and create shadow handler """

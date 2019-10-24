@@ -234,12 +234,13 @@ class SQLiteDB:
         Raises:
             None
         """
-        row_pushed: bool = False  # flag
+        row_pushed: bool = True  # flag
         if self.is_connected():
             # each rows cannot exceed MAX_ROWS number of rows
             rows = self.fetch_rows_all_col(num_rows)
+            if not rows:
+                row_pushed = False
             while rows:
-                row_pushed = True
                 data_q.put(rows.pop())
         return row_pushed
 
@@ -262,9 +263,7 @@ class SQLiteDB:
         while not data_q.empty():
             rows.append(data_q.get())
         # insert all rows to local db
-        insert_success = False
-        if self.is_connected():
-            insert_success = self.insert_mult_rows(rows)
+        insert_success = self.insert_mult_rows(rows)
         if not insert_success:  # insertion failed
             logger.info("Insert data to db failed. Put back into data queue")
             while rows:
