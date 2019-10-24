@@ -212,6 +212,7 @@ class SQLiteDB:
             None
         """
         is_successful: bool = True
+        num_rows: int = len(rows)
         while rows and is_successful:
             is_successful = self.insert_row(rows.pop())
         # commit only after all rows have been inserted
@@ -219,6 +220,7 @@ class SQLiteDB:
         # accommodate the logic in main.py)
         if is_successful:
             self.conn.commit()
+            logger.info(f"Successfully inserted {num_rows} rows to local DB.")
             sleep(1)
         return is_successful
 
