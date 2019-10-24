@@ -1,7 +1,7 @@
 from multiprocessing import Queue, JoinableQueue
 from collect_data import collect_data
 import db
-from utility import internet_on
+from utility import internet_on, convert_to_payload_test
 from child_process import start_command, start_child, kill_child, kill_cmd
 from time import sleep
 import argparse
@@ -112,7 +112,7 @@ def main():
 
                 # send a batch of data from data_q to aws iot. If sending faiks
                 # disconnect with MQTT client and try again
-                if not us.send_MQTT(data_q):
+                if not us.send_MQTT(data_q, convert_to_payload_test):
                     logger.info("Close MQTT client connection and retry")
                     us.disconnect()
 

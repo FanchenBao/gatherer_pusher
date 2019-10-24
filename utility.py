@@ -2,6 +2,8 @@ from collections import defaultdict
 from hashlib import blake2b
 from typing import Dict, List, Any, Tuple
 import http.client as httplib
+import json
+from datetime import datetime
 
 
 def internet_on():  # borrowed from https://stackoverflow.com/a/29854274/9723036
@@ -96,3 +98,43 @@ def make_db_insertable_data(
                 )
             )
     return insertable
+
+
+def convert_to_payload(rows: List[Tuple[Any, ...]], THINGNAME: str) -> str:
+    """
+    Convert `rows` into an appropriate payload for uploading via MQTT.
+
+    Args:
+        rows:       List of tuples, each of which represents a row.
+        THINGNAME:  Name of the aws iot thing.
+    Returns:
+        A string, representing the payload.
+    Raises:
+        None
+    """
+    msgDict: Dict[str, Any] = dict()
+    msgDict["thingName"] = THINGNAME
+    msgDict["messages"] = list()
+    for r in rows:
+        rowDict: Dict[str, Any] = {
+            "macAddressHash": r[0],
+            "isPhysical": r[1],
+            "isWifi": r[2],
+            "captureTime": int(
+                datetime.strptime(r[3], "%Y-%m-%d %H:%M:%S.%f").timestamp()
+                * 1000
+            ),
+            "rssi": r[4],
+            "channel": r[5],
+        }
+        msgDict["messages"].append(rowDict)
+    return json.dumps(msgDict)
+
+
+def convert_to_payload_test(
+    rows: List[Tuple[Any, ...]], THINGNAME: str
+) -> str:
+    """ Same purpose as `convert_to_payload`, but with easier implementation
+        for testing on Fanchen's personal aws iot
+    """
+    return json.dumps(rows)

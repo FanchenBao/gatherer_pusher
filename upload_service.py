@@ -1,5 +1,4 @@
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
-import json
 from time import sleep
 import logging
 import logging.config
@@ -41,6 +40,7 @@ class UploadService:
         self.CLIENT_ID = AWS_IOT_CONFIG["CLIENT_ID"]
         self.TOPIC = AWS_IOT_CONFIG["TOPIC"]
         self.BATCH_SIZE = int(AWS_IOT_CONFIG["BATCH_SIZE"])
+        self.THINGNAME = AWS_IOT_CONFIG["THINGNAME"]
 
         # flags
         self.online = False
@@ -67,7 +67,7 @@ class UploadService:
             batch_size += 1
         return batch
 
-    def send_MQTT(self, data_q) -> bool:
+    def send_MQTT(self, data_q, convert_fun) -> bool:
         """
         Send a batch of rows via MQTT to aws iot. If sending fails, put the
         unsent data back into data_q.
@@ -84,15 +84,15 @@ class UploadService:
         """
         batch = self.make_batch(data_q)
         if batch:
-            payload = json.dumps(batch)
+            payload = convert_fun(batch, self.THINGNAME)
             ret = False  # flag
             try:
-                logger.debug(f"Publishing {payload}")
                 ret = self.myAWSIoTMQTTClient.publish(self.TOPIC, payload, 1)
             except Exception as e:
                 logger.error(f"Error in sending MQTT: {e}")
             sleep(6)  # block slightly longer than duration of time out
             if ret:
+                logger.debug(f"Published msg:\n{payload}")
                 logger.info(
                     f"Publish {len(batch)} rows to {self.TOPIC} successful."
                 )
