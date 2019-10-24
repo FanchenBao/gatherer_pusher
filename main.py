@@ -103,10 +103,10 @@ def main():
                     us.connect()
 
                 # check to see if there is anything remaining in localDB
-                # If there is, take at most MAX_ROWS of them out each time
+                # If there is, take at most BATCH_SIZE of them out each time
                 # If not, close localDB
                 if not localDB.push_to_queue(
-                    data_q, int(AWS_IOT_CONFIG["MAX_ROWS"])
+                    data_q, int(AWS_IOT_CONFIG["BATCH_SIZE"])
                 ):
                     localDB.close_connection()
 

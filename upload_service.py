@@ -40,7 +40,7 @@ class UploadService:
         # Persistent param
         self.CLIENT_ID = AWS_IOT_CONFIG["CLIENT_ID"]
         self.TOPIC = AWS_IOT_CONFIG["TOPIC"]
-        self.MAX_ROWS = int(AWS_IOT_CONFIG["MAX_ROWS"])
+        self.BATCH_SIZE = int(AWS_IOT_CONFIG["BATCH_SIZE"])
 
         # flags
         self.online = False
@@ -61,9 +61,11 @@ class UploadService:
         """
         batch_size: int = 0
         batch: List[Tuple[str, bool, bool, str, int, int]] = []
-        while not data_q.empty() and batch_size <= self.MAX_ROWS:
-            batch.append(data_q.get())
-            batch_size += 1
+        # make batch only when there are batch size number of rows available
+        if data_q.qsize() >= self.BATCH_SIZE:
+            while not data_q.empty() and batch_size <= self.BATCH_SIZE:
+                batch.append(data_q.get())
+                batch_size += 1
         return batch
 
     def send_MQTT(self, data_q) -> bool:
@@ -89,7 +91,9 @@ class UploadService:
                 logger.error(f"Error in sending MQTT: {e}")
             sleep(6)  # block slightly longer than duration of time out
             if ret:
-                logger.info(f"Publish payload to {self.TOPIC} successful.")
+                logger.info(
+                    f"Publish {len(batch)} rows to {self.TOPIC} successful."
+                )
             else:  # msg sent failed.
                 logger.error(f"Publish payload to {self.TOPIC} FAILED!")
                 logger.info("MQTT msg not sent. Put back into data queue")

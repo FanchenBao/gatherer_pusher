@@ -236,7 +236,7 @@ class SQLiteDB:
         """
         row_pushed: bool = True  # flag
         if self.is_connected():
-            # each rows cannot exceed MAX_ROWS number of rows
+            # each rows cannot exceed BATCH_SIZE number of rows
             rows = self.fetch_rows_all_col(num_rows)
             if not rows:
                 row_pushed = False
