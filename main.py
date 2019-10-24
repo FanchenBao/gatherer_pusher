@@ -118,7 +118,10 @@ def main():
 
             # internet is off but we are still waiting
             elif offline_timer <= int(HEALTH_CHECK_CONFIG["MAX_OFFLINE_DUR"]):
-                logger.warning(f"Device offline for {offline_timer} seconds")
+                if offline_timer % 10 == 0:
+                    logger.warning(
+                        f"Device offline for {offline_timer} seconds"
+                    )
                 offline_timer += 1  # outer loop waits 10s each iteration
                 if not us.offline:  # disconnect client if not already
                     us.disconnect()
